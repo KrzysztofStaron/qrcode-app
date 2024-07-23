@@ -15,7 +15,6 @@ const ProjectButton = ({
   const [editing, setEditing] = useState(true);
   const [tempTitle, setTempTitle] = useState(title);
 
-  // After loading from a database
   useEffect(() => {
     oldTitle.current = title;
   }, []);
@@ -49,7 +48,7 @@ const ProjectButton = ({
           type="text"
           className="grow bg-transparent focus:outline-none"
           autoFocus
-          value={tempTitle}
+          value={tempTitle || ""}
           onChange={(e) => setTempTitle(e.target.value)}
           onContextMenu={(e) => e.preventDefault()}
           onKeyDown={handleInputKeyPress}

@@ -1,12 +1,27 @@
 "use client";
 // https://www.npmjs.com/package/qrcode
 
-import React, { use, useEffect, useReducer, useRef, useState } from "react";
+import React, {
+  act,
+  use,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import parse from "html-react-parser";
 import { toString, QRCodeToStringOptions } from "qrcode";
 import { HexColorPicker } from "react-colorful";
 import { db } from "../firebase/config";
-import { addDoc, collection } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  setDoc,
+} from "firebase/firestore";
 import ProjectButton from "./ProjectButton";
 
 const UUID = "Hello";
@@ -16,6 +31,7 @@ const EXAMPLE = "123";
 interface Project {
   title: string;
   endPoint: "redirect" | "text" | "image";
+  codeId: string;
   content: string;
   settings: QRCodeToStringOptions;
 }
@@ -26,6 +42,8 @@ enum actionTypes {
   CONTENT,
   TITLE,
   ENDPOINT,
+  NEW_PROJECT,
+  ADD_PROJECT,
 }
 
 const projectReducer = (
@@ -81,44 +99,97 @@ const projectReducer = (
             }
           : project
       );
+    case actionTypes.NEW_PROJECT:
+      return [
+        ...state,
+        {
+          title: "New Project",
+          endPoint: "redirect",
+          codeId: action.payload,
+          content: "",
+          settings: {
+            errorCorrectionLevel: "M",
+            margin: 2,
+          },
+        },
+      ];
+    case actionTypes.ADD_PROJECT:
+      console.log(action.payload);
+      return [...state, action.payload as Project];
   }
 
   return state;
 };
 
-const newProject = async (setqrcodeId: CallableFunction, project: Project) => {
-  // new File
-  const docRef = await addDoc(collection(db, UUID), {});
-  console.log(docRef.id);
-  setqrcodeId(docRef.id);
-};
-
 const Home = () => {
-  const [qrcodeId, setqrcodeId] = useState("");
   const [codeData, setCodeData] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const [projects, updateProjects] = useReducer(projectReducer, [
-    {
-      title: "",
-      endPoint: "redirect",
-      content: "",
-      settings: {
-        type: "svg",
-        margin: 1,
-        errorCorrectionLevel: "H",
-      },
-    },
-  ]);
+  const [projects, updateProjects] = useReducer(projectReducer, []);
+  const flag = useRef(false);
+
   useEffect(() => {
-    toString(
-      `http://localhost:3000/view/${qrcodeId || EXAMPLE}`,
-      projects[activeIndex].settings,
-      function (err: any, url: string) {
-        setCodeData(url);
+    const getData = async () => {
+      const docs = await getDocs(collection(db, UUID));
+      const data = docs.docs.map((doc) => doc.data());
+
+      data.forEach((p, index) => {
+        updateProjects({
+          type: actionTypes.ADD_PROJECT,
+          index: index,
+          payload: p,
+        });
+      });
+    };
+
+    if (!flag.current) {
+      getData();
+      flag.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateProjectDocs = async () => {
+      try {
+        const updatePromises = projects
+          .filter((project) => project.codeId)
+          .map((project) => setDoc(doc(db, UUID, project.codeId), project));
+        await Promise.all(updatePromises);
+      } catch (error) {
+        console.error("Failed to update projects:", error);
       }
-    );
-  }, [qrcodeId, projects[activeIndex].settings]);
+    };
+
+    updateProjectDocs();
+  }, [projects]);
+
+  useEffect(() => {
+    if (projects[activeIndex]?.codeId || projects[activeIndex]?.settings) {
+      toString(
+        `http://localhost:3000/view/${
+          projects[activeIndex]?.codeId || EXAMPLE
+        }`,
+        projects[activeIndex]?.settings,
+        function (err: any, url: string) {
+          if (err) {
+            console.error("Error generating URL:", err);
+            return;
+          }
+          setCodeData(url);
+        }
+      );
+    }
+  }, [projects[activeIndex]?.codeId, projects[activeIndex]?.settings]);
+
+  const newProject = async () => {
+    // new File
+    const docRef = await addDoc(collection(db, UUID), {});
+    updateProjects({
+      type: actionTypes.NEW_PROJECT,
+      payload: docRef.id,
+      index: 0,
+    });
+  };
 
   return (
     <div className="flex h-screen w-screen bg-slate-950">
@@ -138,6 +209,13 @@ const Home = () => {
             }}
           />
         ))}
+
+        <button
+          className="flex items-center justify-center h-10 w-full pl-2 bg-slate-800 hover:bg-slate-900 text-white "
+          onClick={newProject}
+        >
+          New Project
+        </button>
       </div>
       <div className="flex items-center justify-center flex-grow">
         <div className="font-mono">
@@ -151,7 +229,7 @@ const Home = () => {
                   payload: e.target.value,
                 })
               }
-              value={projects[activeIndex].endPoint}
+              value={projects[activeIndex]?.endPoint}
             >
               <option value="redirect">Redirect</option>
               <option value="text">Text</option>
@@ -169,7 +247,9 @@ const Home = () => {
                   payload: e.target.value,
                 })
               }
-              value={projects[activeIndex].settings.errorCorrectionLevel}
+              value={
+                projects[activeIndex]?.settings?.errorCorrectionLevel ?? "M"
+              }
             >
               <option value="L">Low</option>
               <option value="M">Medium</option>
@@ -207,7 +287,7 @@ const Home = () => {
                   payload: e.target.value,
                 })
               }
-              value={projects[activeIndex].content}
+              value={projects[activeIndex]?.content}
               placeholder={EXAMPLE}
             />
           </div>
