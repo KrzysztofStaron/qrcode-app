@@ -7,39 +7,88 @@ import { toString, QRCodeToStringOptions } from "qrcode";
 import { HexColorPicker } from "react-colorful";
 import { db } from "../firebase/config";
 import { addDoc, collection } from "firebase/firestore";
+import ProjectButton from "./ProjectButton";
 
-const EXAMPLE = "example.com";
+const UUID = "Hello";
 
-enum actionTypes {
-  COLOR,
-  CORRECTION,
-  BACKGROUND,
-  MARGIN,
-  CONTENT,
+const EXAMPLE = "123";
+
+interface Project {
+  title: string;
+  endPoint: "redirect" | "text" | "image";
+  content: string;
+  settings: QRCodeToStringOptions;
 }
 
-const settingsReducer = (
-  state: QRCodeToStringOptions,
-  action: { type: actionTypes; payload: any }
-): QRCodeToStringOptions => {
-  switch (action.type) {
-    case actionTypes.COLOR:
-      return { ...state, color: { ...state.color, dark: action.payload } };
-    case actionTypes.CORRECTION:
-      return { ...state, errorCorrectionLevel: action.payload };
-    case actionTypes.BACKGROUND:
-      return { ...state, color: { ...state.color, light: action.payload } };
-    case actionTypes.MARGIN:
-      return { ...state, margin: action.payload };
+enum actionTypes {
+  CORRECTION,
+  MARGIN,
+  CONTENT,
+  TITLE,
+  ENDPOINT,
+}
 
-    default:
-      return state;
+const projectReducer = (
+  state: Project[],
+  action: { type: actionTypes; index: number; payload: any }
+): Project[] => {
+  switch (action.type) {
+    case actionTypes.CORRECTION:
+      return state.map((project, index) =>
+        index === action.index
+          ? {
+              ...project,
+              settings: {
+                ...project.settings,
+                errorCorrectionLevel: action.payload,
+              },
+            }
+          : project
+      );
+    case actionTypes.MARGIN:
+      return state.map((project, index) =>
+        index === action.index
+          ? {
+              ...project,
+              settings: { ...project.settings, margin: action.payload },
+            }
+          : project
+      );
+    case actionTypes.CONTENT:
+      return state.map((project, index) =>
+        index === action.index
+          ? {
+              ...project,
+              content: action.payload,
+            }
+          : project
+      );
+    case actionTypes.TITLE:
+      return state.map((project, index) =>
+        index === action.index
+          ? {
+              ...project,
+              title: action.payload,
+            }
+          : project
+      );
+    case actionTypes.ENDPOINT:
+      return state.map((project, index) =>
+        index === action.index
+          ? {
+              ...project,
+              endPoint: action.payload,
+            }
+          : project
+      );
   }
+
+  return state;
 };
 
-const initialize = async (setqrcodeId: CallableFunction) => {
+const newProject = async (setqrcodeId: CallableFunction, project: Project) => {
   // new File
-  const docRef = await addDoc(collection(db, "codes"), {});
+  const docRef = await addDoc(collection(db, UUID), {});
   console.log(docRef.id);
   setqrcodeId(docRef.id);
 };
@@ -47,125 +96,118 @@ const initialize = async (setqrcodeId: CallableFunction) => {
 const Home = () => {
   const [qrcodeId, setqrcodeId] = useState("");
   const [codeData, setCodeData] = useState("");
-  const [contentType, setContentType] = useState("");
-  const [content, setContent] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  //const [color, setColor] = useState("#000000");
-  //const [lightColor, setLightColor] = useState("#ffffff");
-  const [settings, updateSettings] = useReducer(settingsReducer, {
-    type: "svg",
-    margin: 1,
-    errorCorrectionLevel: "H",
-    color: {
-      dark: "#000",
-      light: "fff",
+  const [projects, updateProjects] = useReducer(projectReducer, [
+    {
+      title: "",
+      endPoint: "redirect",
+      content: "",
+      settings: {
+        type: "svg",
+        margin: 1,
+        errorCorrectionLevel: "H",
+      },
     },
-  });
-
+  ]);
   useEffect(() => {
-    if (!qrcodeId) {
-      initialize(setqrcodeId);
-    }
-  }, []);
-
-  useEffect(() => {
-    toString(qrcodeId || EXAMPLE, settings, function (err: any, url: string) {
-      setCodeData(url);
-    });
-  }, [qrcodeId, settings]);
-
-  /*useEffect(() => {
-    updateSettings({ type: actionTypes.COLOR, payload: color });
-  }, [color]);
-
-  useEffect(() => {
-    updateSettings({ type: actionTypes.BACKGROUND, payload: lightColor });
-  }, [lightColor]);*/
+    toString(
+      `http://localhost:3000/view/${qrcodeId || EXAMPLE}`,
+      projects[activeIndex].settings,
+      function (err: any, url: string) {
+        setCodeData(url);
+      }
+    );
+  }, [qrcodeId, projects[activeIndex].settings]);
 
   return (
     <div className="flex h-screen w-screen bg-slate-950">
-      <div className="w-60">
-        <div className="flex items-center justify-center">
-          <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            onClick={() => initialize(setqrcodeId)}
-          >
-            New QRCode
-          </button>
-        </div>
-        <div className="flex items-center justify-center">
-          <div className="font-mono">
-            <label className="text-white">QRCode ID: </label>
-            <input
-              type="text"
-              className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
-              value={qrcodeId}
-              readOnly
-            />
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center justify-center flex-grow">
-        <div className="font-mono">
-          <label className="text-white">Error correction: </label>
-          <select
-            onChange={(e) =>
-              updateSettings({
-                type: actionTypes.CORRECTION,
-                payload: e.target.value,
-              })
-            }
-            value="M"
-          >
-            <option value="L">Low</option>
-            <option value="M">Medium</option>
-            <option value="Q">Quartile</option>
-            <option value="H">High</option>
-          </select>
-          <br />
-
-          <label className="text-white">Margin: </label>
-
-          <input
-            type="range"
-            min="0"
-            max="10"
-            className="cursor-grab"
-            onChange={(e) => {
-              updateSettings({
-                type: actionTypes.MARGIN,
-                payload: Number(e.target.value),
+      <div className="w-60 bg-slate-800">
+        {projects.map((project, index) => (
+          <ProjectButton
+            key={index}
+            title={project.title}
+            onClick={() => setActiveIndex(index)}
+            onTitleChanged={(title: string) => {
+              console.log(title);
+              updateProjects({
+                type: actionTypes.TITLE,
+                index,
+                payload: title,
               });
             }}
           />
-          <br />
+        ))}
+      </div>
+      <div className="flex items-center justify-center flex-grow">
+        <div className="font-mono">
+          <div className="w-full flex justify-between">
+            <label className="text-white">Endpoint type: </label>
+            <select
+              onChange={(e) =>
+                updateProjects({
+                  type: actionTypes.ENDPOINT,
+                  index: activeIndex,
+                  payload: e.target.value,
+                })
+              }
+              value={projects[activeIndex].endPoint}
+            >
+              <option value="redirect">Redirect</option>
+              <option value="text">Text</option>
+              <option value="image">Image</option>
+            </select>
+          </div>
 
-          <label className="text-white">Endpoint type: </label>
-          <select
-            onChange={(e) => setContentType(e.target.value)}
-            value="redirect"
-          >
-            <option value="redirect">Redirect</option>
-            <option value="text">Quartile</option>
-            <option value="image">Image</option>
-          </select>
+          <div className="w-full flex justify-between mt-2">
+            <label className="text-white">Error correction: </label>
+            <select
+              onChange={(e) =>
+                updateProjects({
+                  type: actionTypes.CORRECTION,
+                  index: activeIndex,
+                  payload: e.target.value,
+                })
+              }
+              value={projects[activeIndex].settings.errorCorrectionLevel}
+            >
+              <option value="L">Low</option>
+              <option value="M">Medium</option>
+              <option value="Q">Quartile</option>
+              <option value="H">High</option>
+            </select>
+          </div>
 
-          {/*<div className="flex">
-          <HexColorPicker color={color} onChange={setColor} className="" />
-          <HexColorPicker
-            color={lightColor}
-            onChange={setLightColor}
-            className="ml-4"
-          />
-        </div>*/}
+          <div className="mt-2 mb-2 flex items-center">
+            <label className="text-white">Margin: </label>
 
+            <input
+              type="range"
+              min="0"
+              max="10"
+              className="cursor-grab ml-2"
+              onChange={(e) => {
+                updateProjects({
+                  type: actionTypes.MARGIN,
+                  index: activeIndex,
+                  payload: Number(e.target.value),
+                });
+              }}
+            />
+          </div>
           <div>
             <QRCodePreview data={codeData} />
             <input
               type="text"
               className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
-              onChange={(e) => setContent(e.target.value)}
-              value={content}
+              onChange={(e) =>
+                updateProjects({
+                  type: actionTypes.CONTENT,
+                  index: activeIndex,
+                  payload: e.target.value,
+                })
+              }
+              value={projects[activeIndex].content}
               placeholder={EXAMPLE}
             />
           </div>
