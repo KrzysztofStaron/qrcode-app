@@ -124,6 +124,7 @@ const projectReducer = (
 const Home = () => {
   const [codeData, setCodeData] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [newCodeId, setNewCodeId] = useState("");
 
   const [projects, updateProjects] = useReducer(projectReducer, []);
   const flag = useRef(false);
@@ -184,6 +185,7 @@ const Home = () => {
   const newProject = async () => {
     // new File
     const docRef = await addDoc(collection(db, UUID), {});
+    setNewCodeId(docRef.id);
     updateProjects({
       type: actionTypes.NEW_PROJECT,
       payload: docRef.id,
@@ -199,6 +201,8 @@ const Home = () => {
             key={index}
             title={project.title}
             onClick={() => setActiveIndex(index)}
+            isActive={index === activeIndex}
+            isNew={newCodeId === project.codeId}
             onTitleChanged={(title: string) => {
               console.log(title);
               updateProjects({
@@ -287,8 +291,7 @@ const Home = () => {
                   payload: e.target.value,
                 })
               }
-              value={projects[activeIndex]?.content}
-              placeholder={EXAMPLE}
+              value={projects[activeIndex]?.content ?? EXAMPLE}
             />
           </div>
         </div>

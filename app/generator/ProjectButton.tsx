@@ -4,18 +4,26 @@ interface ProjectButtonProps {
   title: string;
   onTitleChanged: CallableFunction;
   onClick: CallableFunction;
+  isActive: boolean;
+  isNew: boolean;
 }
 
 const ProjectButton = ({
   title,
   onTitleChanged,
   onClick,
+  isActive,
+  isNew,
 }: ProjectButtonProps) => {
   const oldTitle = useRef("");
-  const [editing, setEditing] = useState(true);
+  const [editing, setEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
 
   useEffect(() => {
+    if (isNew) {
+      setEditing(true);
+    }
+
     oldTitle.current = title;
   }, []);
 
@@ -40,7 +48,9 @@ const ProjectButton = ({
 
   return (
     <div
-      className="flex items-center justify-center h-10 w-full pl-2 bg-slate-700 hover:bg-slate-600 text-white "
+      className={`flex items-center justify-center h-10 w-full pl-2 ${
+        isActive ? "bg-slate-600" : "bg-slate-700"
+      } hover:bg-slate-600 text-white`}
       onClick={(e) => onClick()}
     >
       {editing ? (
