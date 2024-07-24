@@ -1,18 +1,11 @@
 "use client";
 // https://www.npmjs.com/package/qrcode
 
-import React, {
-  act,
-  use,
-  useEffect,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import parse from "html-react-parser";
 import { toString, QRCodeToStringOptions } from "qrcode";
 import { HexColorPicker } from "react-colorful";
-import { db } from "../firebase/config";
+import { auth, db } from "../firebase/config";
 import {
   addDoc,
   collection,
@@ -23,14 +16,15 @@ import {
   setDoc,
 } from "firebase/firestore";
 import ProjectButton from "./ProjectButton";
-
-const UUID = "Hello";
+import path from "path";
+import { onAuthStateChanged } from "firebase/auth";
+import Spinner from "../spinner/spinner";
 
 const EXAMPLE = "123";
 
-interface Project {
+export interface Project {
   title: string;
-  endPoint: "redirect" | "text" | "image";
+  endPoint: "redirect" | "text";
   codeId: string;
   content: string;
   settings: QRCodeToStringOptions;
@@ -122,12 +116,24 @@ const projectReducer = (
 };
 
 const Home = () => {
+  const [UUID, setUUID] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [codeData, setCodeData] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [newCodeId, setNewCodeId] = useState("");
 
   const [projects, updateProjects] = useReducer(projectReducer, []);
   const flag = useRef(false);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      setAuthenticated(true);
+      setUUID(user.uid);
+    } else {
+      window.location.href = "/";
+    }
+  });
 
   useEffect(() => {
     const getData = async () => {
@@ -141,13 +147,15 @@ const Home = () => {
           payload: p,
         });
       });
+
+      setLoading(false);
     };
 
-    if (!flag.current) {
+    if (!flag.current && authenticated) {
       getData();
       flag.current = true;
     }
-  }, []);
+  }, [authenticated]);
 
   useEffect(() => {
     const updateProjectDocs = async () => {
@@ -176,6 +184,11 @@ const Home = () => {
             console.error("Error generating URL:", err);
             return;
           }
+          console.log(
+            `http://localhost:3000/view/${
+              projects[activeIndex]?.codeId || EXAMPLE
+            }`
+          );
           setCodeData(url);
         }
       );
@@ -185,6 +198,10 @@ const Home = () => {
   const newProject = async () => {
     // new File
     const docRef = await addDoc(collection(db, UUID), {});
+    await setDoc(doc(db, "projects", docRef.id), {
+      path: path.join(UUID, "/", docRef.id),
+    });
+
     setNewCodeId(docRef.id);
     updateProjects({
       type: actionTypes.NEW_PROJECT,
@@ -192,6 +209,14 @@ const Home = () => {
       index: 0,
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen bg-slate-950 items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen bg-slate-950">
@@ -237,7 +262,6 @@ const Home = () => {
             >
               <option value="redirect">Redirect</option>
               <option value="text">Text</option>
-              <option value="image">Image</option>
             </select>
           </div>
 
