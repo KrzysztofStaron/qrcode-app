@@ -4,6 +4,7 @@ interface ProjectButtonProps {
   title: string;
   onTitleChanged: CallableFunction;
   onClick: CallableFunction;
+  setOld: CallableFunction;
   isActive: boolean;
   isNew: boolean;
 }
@@ -14,6 +15,7 @@ const ProjectButton = ({
   onClick,
   isActive,
   isNew,
+  setOld,
 }: ProjectButtonProps) => {
   const oldTitle = useRef("");
   const [editing, setEditing] = useState(false);
@@ -29,6 +31,10 @@ const ProjectButton = ({
 
   const confirmTitle = () => {
     setEditing(false);
+    if (isNew) {
+      onClick();
+      setOld();
+    }
 
     if (oldTitle.current !== tempTitle) {
       onTitleChanged(tempTitle);

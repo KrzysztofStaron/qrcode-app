@@ -17,7 +17,11 @@ export default function Page({ params }: { params: { id: string } }) {
       const projDoc = await getDoc(doc(db, srcDoc.data()!.path));
 
       if (projDoc?.data()?.endPoint === "redirect") {
-        window.location.href = projDoc!.data()?.content;
+        let target = projDoc!.data()?.content;
+        if (!target.startsWith("https://")) {
+          target = `https://${target}`;
+        }
+        location.href = target;
       } else if (projDoc?.data()?.endPoint === "text") {
         setText(projDoc!.data()?.content);
       } else {

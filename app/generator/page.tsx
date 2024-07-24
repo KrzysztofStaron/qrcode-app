@@ -20,8 +20,6 @@ import path from "path";
 import { onAuthStateChanged } from "firebase/auth";
 import Spinner from "../spinner/spinner";
 
-const EXAMPLE = "123";
-
 export interface Project {
   title: string;
   endPoint: "redirect" | "text";
@@ -119,6 +117,7 @@ const Generator = () => {
   const [UUID, setUUID] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isNew, setIsNew] = useState(false);
   const [codeData, setCodeData] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [newCodeId, setNewCodeId] = useState("");
@@ -161,7 +160,6 @@ const Generator = () => {
   }, [authenticated]);
 
   // Update database when projects change
-  // TODO: Debounce this
   const updateProjectDocs = async () => {
     try {
       const updatePromises = projects
@@ -189,10 +187,9 @@ const Generator = () => {
     debounceUpdateProjectDocs();
   }, [projects]);
 
+  // Generate QR Code
   useEffect(() => {
-    const targetUrl = `${window.location.origin}/view/${
-      projects[activeIndex]?.codeId || EXAMPLE
-    }`;
+    const targetUrl = `${window.location.origin}/view/${projects[activeIndex]?.codeId}`;
 
     if (projects[activeIndex]?.codeId || projects[activeIndex]?.settings) {
       toString(
@@ -218,6 +215,7 @@ const Generator = () => {
     });
 
     setNewCodeId(docRef.id);
+    setIsNew(true);
     updateProjects({
       type: actionTypes.NEW_PROJECT,
       payload: docRef.id,
@@ -242,7 +240,8 @@ const Generator = () => {
             title={project.title}
             onClick={() => setActiveIndex(index)}
             isActive={index === activeIndex}
-            isNew={newCodeId === project.codeId}
+            isNew={isNew ? newCodeId === project.codeId : false}
+            setOld={() => setIsNew(false)}
             onTitleChanged={(title: string) => {
               console.log(title);
               updateProjects({
@@ -264,7 +263,7 @@ const Generator = () => {
       <div className="flex items-center justify-center flex-grow">
         <div className="font-mono">
           <div className="w-full flex justify-between">
-            <label className="text-white">Endpoint type: </label>
+            <label className="text-white">Content type: </label>
             <select
               onChange={(e) =>
                 updateProjects({
@@ -308,7 +307,7 @@ const Generator = () => {
               type="range"
               min="0"
               max="10"
-              className="cursor-grab ml-2"
+              className="cursor-grab ml-2 accent-blue-600"
               onChange={(e) => {
                 updateProjects({
                   type: actionTypes.MARGIN,
@@ -319,7 +318,7 @@ const Generator = () => {
             />
           </div>
           <div>
-            <QRCodePreview data={codeData} />
+            {parse(codeData)}
             <input
               type="text"
               className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
@@ -330,17 +329,28 @@ const Generator = () => {
                   payload: e.target.value,
                 })
               }
-              value={projects[activeIndex]?.content ?? EXAMPLE}
+              value={projects[activeIndex]?.content}
+              placeholder="https://example.com"
             />
           </div>
+          <button
+            className="text-white w-full bg-blue-600 mt-4 p-1 rounded-md"
+            onClick={() => {
+              const blob = new Blob([codeData], { type: "image/svg+xml" });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `${projects[activeIndex].title}.svg`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Download
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-const QRCodePreview = ({ data }: { data: string }) => {
-  return <div>{parse(data)}</div>;
 };
 
 /*
