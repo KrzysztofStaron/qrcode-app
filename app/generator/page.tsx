@@ -115,17 +115,19 @@ const projectReducer = (
   return state;
 };
 
-const Home = () => {
+const Generator = () => {
   const [UUID, setUUID] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [codeData, setCodeData] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [newCodeId, setNewCodeId] = useState("");
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const [projects, updateProjects] = useReducer(projectReducer, []);
   const flag = useRef(false);
 
+  // Display App or redirect user to root
   onAuthStateChanged(auth, (user) => {
     if (user) {
       setAuthenticated(true);
@@ -135,6 +137,7 @@ const Home = () => {
     }
   });
 
+  // Get projects from database, and set "loading" to false
   useEffect(() => {
     const getData = async () => {
       const docs = await getDocs(collection(db, UUID));
@@ -157,39 +160,51 @@ const Home = () => {
     }
   }, [authenticated]);
 
-  useEffect(() => {
-    const updateProjectDocs = async () => {
-      try {
-        const updatePromises = projects
-          .filter((project) => project.codeId)
-          .map((project) => setDoc(doc(db, UUID, project.codeId), project));
-        await Promise.all(updatePromises);
-      } catch (error) {
-        console.error("Failed to update projects:", error);
-      }
-    };
+  // Update database when projects change
+  // TODO: Debounce this
+  const updateProjectDocs = async () => {
+    try {
+      const updatePromises = projects
+        .filter((project) => project.codeId)
+        .map((project) => setDoc(doc(db, UUID, project.codeId), project));
+      await Promise.all(updatePromises);
+    } catch (error) {
+      console.error("Failed to update projects:", error);
+    }
 
-    updateProjectDocs();
+    console.log("updated");
+  };
+
+  const debounceUpdateProjectDocs = () => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    debounceTimeout.current = setTimeout(() => {
+      updateProjectDocs();
+    }, 1000);
+  };
+
+  useEffect(() => {
+    debounceUpdateProjectDocs();
   }, [projects]);
 
   useEffect(() => {
+    const targetUrl = `${window.location.origin}/view/${
+      projects[activeIndex]?.codeId || EXAMPLE
+    }`;
+
     if (projects[activeIndex]?.codeId || projects[activeIndex]?.settings) {
       toString(
-        `http://localhost:3000/view/${
-          projects[activeIndex]?.codeId || EXAMPLE
-        }`,
+        targetUrl,
         projects[activeIndex]?.settings,
         function (err: any, url: string) {
           if (err) {
             console.error("Error generating URL:", err);
             return;
           }
-          console.log(
-            `http://localhost:3000/view/${
-              projects[activeIndex]?.codeId || EXAMPLE
-            }`
-          );
           setCodeData(url);
+          console.log(targetUrl);
         }
       );
     }
@@ -343,4 +358,4 @@ const Child = React.forwardRef((props, ref) => {
   return <></>;
 });
 */
-export default Home;
+export default Generator;
