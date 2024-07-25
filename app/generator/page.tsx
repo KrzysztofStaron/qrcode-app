@@ -17,8 +17,9 @@ import {
 } from "firebase/firestore";
 import ProjectButton from "./ProjectButton";
 import path from "path";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import Spinner from "../spinner/spinner";
+import { IoExitOutline } from "react-icons/io5";
 
 export interface Project {
   title: string;
@@ -290,6 +291,7 @@ const Generator = () => {
           New Project
         </button>
       </div>
+
       <div className="flex items-center justify-center flex-grow">
         {projects.length !== 0 ? (
           <div className="font-mono">
@@ -383,6 +385,12 @@ const Generator = () => {
           <></>
         )}
       </div>
+      <button
+        onClick={() => signOut(auth)}
+        className="text-white mr-2 font-bold flex items-center justify-center text-2xl absolute top-2 right-2"
+      >
+        <IoExitOutline />
+      </button>
     </div>
   );
 };

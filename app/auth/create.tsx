@@ -46,7 +46,7 @@ const CreateAccount = ({ toogleSite }: any) => {
   };
 
   return (
-    <section className="bg-gray-50 dark:bg-gray-900 h-screen">
+    <section className="bg-gray-50 dark:bg-slate-950 h-screen">
       <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
         <div className="w-full bg-white rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:bg-gray-800 dark:border-gray-700">
           <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
@@ -105,7 +105,7 @@ const CreateAccount = ({ toogleSite }: any) => {
               <p className="text-sm font-light text-gray-500 dark:text-gray-400 flex">
                 Already have an account?
                 <span
-                  className="font-medium text-primary-600 hover:underline dark:text-primary-500 cursor-pointer pl-1"
+                  className="font-medium text-primary-600 hover:underline dark:text-primary-500 cursor-pointer pl-1 text-blue-500"
                   onClick={toogleSite}
                 >
                   Log In
