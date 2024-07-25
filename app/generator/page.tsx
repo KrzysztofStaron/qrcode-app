@@ -315,6 +315,21 @@ const Generator = () => {
       >
         {projects.length !== 0 ? (
           <div className="font-mono">
+            <div className="mt-2 mb-2 flex items-center">
+              <label className="text-white">Title: </label>
+              <input
+                type="text"
+                className="w-full ml-2"
+                onChange={(e) => {
+                  updateProjects({
+                    type: actionTypes.TITLE,
+                    index: activeIndex,
+                    payload: e.target.value,
+                  });
+                }}
+                value={projects[activeIndex]?.title ?? ""}
+              />
+            </div>
             <div className="w-full flex justify-between">
               <label className="text-white">Content type: </label>
               <select
