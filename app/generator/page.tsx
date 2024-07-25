@@ -126,6 +126,7 @@ const Generator = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [newCodeId, setNewCodeId] = useState("");
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   const [projects, updateProjects] = useReducer(projectReducer, []);
   const flag = useRef(false);
@@ -141,6 +142,11 @@ const Generator = () => {
   });
 
   // Get projects from database, and set "loading" to false
+
+  useEffect(() => {
+    window.innerWidth < 768 ? setIsMobile(true) : setIsMobile(false);
+  }, []);
+
   useEffect(() => {
     const getData = async () => {
       const docs = await getDocs(collection(db, UUID));
@@ -243,8 +249,16 @@ const Generator = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950">
-      <div className="w-60 bg-slate-800">
+    <div
+      className={`flex h-screen w-screen bg-slate-950 ${
+        isMobile ? "flex-col" : ""
+      }`}
+    >
+      <div
+        className={` bg-slate-800 overflow-scroll ${
+          isMobile ? "order-2 w-screen h-36" : "w-60"
+        }`}
+      >
         {projects.map((project, index) => (
           <ProjectButton
             key={index}
@@ -294,7 +308,11 @@ const Generator = () => {
         </button>
       </div>
 
-      <div className="flex items-center justify-center flex-grow">
+      <div
+        className={`flex items-center justify-center flex-grow ${
+          isMobile ? "order-1" : ""
+        }`}
+      >
         {projects.length !== 0 ? (
           <div className="font-mono">
             <div className="w-full flex justify-between">
