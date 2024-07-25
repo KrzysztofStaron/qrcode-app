@@ -4,15 +4,13 @@
 import React, { useEffect, useReducer, useRef, useState } from "react";
 import parse from "html-react-parser";
 import { toString, QRCodeToStringOptions } from "qrcode";
-import { auth, db } from "../firebase/config";
+import { auth, db, storage } from "../firebase/config";
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
-  query,
   setDoc,
 } from "firebase/firestore";
 import ProjectButton from "./ProjectButton";
@@ -20,10 +18,11 @@ import path from "path";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import Spinner from "../spinner/spinner";
 import { IoExitOutline } from "react-icons/io5";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 export interface Project {
   title: string;
-  endPoint: "redirect" | "text";
+  endPoint: "redirect" | "text" | "image";
   codeId: string;
   content: string;
   settings: QRCodeToStringOptions;
@@ -238,6 +237,34 @@ const Generator = () => {
     });
   };
 
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        const storageRef = ref(
+          storage,
+          `images/${projects[activeIndex].codeId}/${file.name}`
+        );
+        updateProjects({
+          type: actionTypes.CONTENT,
+          index: activeIndex,
+          payload: `images/${projects[activeIndex].codeId}/${file.name}`,
+        });
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        updateProjects({
+          type: actionTypes.CONTENT,
+          index: activeIndex,
+          payload: downloadURL,
+        });
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen w-screen bg-slate-950 items-center justify-center">
@@ -342,6 +369,7 @@ const Generator = () => {
               >
                 <option value="redirect">Redirect</option>
                 <option value="text">Text</option>
+                <option value="image">Image</option>
               </select>
             </div>
 
@@ -386,19 +414,30 @@ const Generator = () => {
             </div>
             <div>
               {parse(codeData)}
-              <input
-                type="text"
-                className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
-                onChange={(e) =>
-                  updateProjects({
-                    type: actionTypes.CONTENT,
-                    index: activeIndex,
-                    payload: e.target.value,
-                  })
-                }
-                value={projects[activeIndex]?.content}
-                placeholder="https://example.com"
-              />
+              {projects[activeIndex].endPoint === "image" ? (
+                <>
+                  <input
+                    type="file"
+                    id="myFile"
+                    name="filename"
+                    onChange={handleFileUpload}
+                  />
+                </>
+              ) : (
+                <input
+                  type="text"
+                  className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
+                  onChange={(e) =>
+                    updateProjects({
+                      type: actionTypes.CONTENT,
+                      index: activeIndex,
+                      payload: e.target.value,
+                    })
+                  }
+                  value={projects[activeIndex]?.content}
+                  placeholder="https://example.com"
+                />
+              )}
             </div>
             <button
               className="text-white w-full bg-blue-600 mt-4 p-1 rounded-md"
