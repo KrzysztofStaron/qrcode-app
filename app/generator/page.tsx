@@ -369,7 +369,6 @@ const Generator = () => {
               >
                 <option value="redirect">Redirect</option>
                 <option value="text">Text</option>
-                <option value="image">Image</option>
               </select>
             </div>
 
