@@ -62,7 +62,7 @@ const ProjectButton = ({
 
   return (
     <div
-      className={`flex items-center justify-center h-10 w-full pl-2 ${
+      className={`flex items-center justify-center h-10 w-full pl-2 truncate ${
         isActive ? "bg-slate-600" : "bg-slate-700"
       } hover:bg-slate-600 text-white`}
       onClick={(e) => onClick()}
