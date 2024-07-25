@@ -1,4 +1,5 @@
 import React, { useState, KeyboardEvent, useRef, useEffect } from "react";
+import { FiTrash2 } from "react-icons/fi";
 
 interface ProjectButtonProps {
   title: string;
@@ -7,6 +8,7 @@ interface ProjectButtonProps {
   setOld: CallableFunction;
   isActive: boolean;
   isNew: boolean;
+  removeSelf: CallableFunction;
 }
 
 const ProjectButton = ({
@@ -16,10 +18,12 @@ const ProjectButton = ({
   isActive,
   isNew,
   setOld,
+  removeSelf,
 }: ProjectButtonProps) => {
   const oldTitle = useRef("");
   const [editing, setEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(title);
+  const [isHovering, setIsHovering] = useState(false);
 
   useEffect(() => {
     if (isNew) {
@@ -31,6 +35,10 @@ const ProjectButton = ({
 
   const confirmTitle = () => {
     setEditing(false);
+    if (tempTitle.trim() === "") {
+      removeSelf();
+      return;
+    }
     if (isNew) {
       onClick();
       setOld();
@@ -58,6 +66,8 @@ const ProjectButton = ({
         isActive ? "bg-slate-600" : "bg-slate-700"
       } hover:bg-slate-600 text-white`}
       onClick={(e) => onClick()}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
     >
       {editing ? (
         <input
@@ -81,6 +91,14 @@ const ProjectButton = ({
           {title}
         </button>
       )}
+      {(isHovering || isActive) && !editing ? (
+        <button
+          className="flex items-center justify-center mr-2 hover:text-gray-400"
+          onClick={() => removeSelf()}
+        >
+          <FiTrash2 />
+        </button>
+      ) : null}
     </div>
   );
 };

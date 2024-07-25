@@ -4,11 +4,11 @@
 import React, { useEffect, useReducer, useRef, useState } from "react";
 import parse from "html-react-parser";
 import { toString, QRCodeToStringOptions } from "qrcode";
-import { HexColorPicker } from "react-colorful";
 import { auth, db } from "../firebase/config";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -36,6 +36,7 @@ enum actionTypes {
   ENDPOINT,
   NEW_PROJECT,
   ADD_PROJECT,
+  DELETE_PROJECT,
 }
 
 const projectReducer = (
@@ -106,8 +107,10 @@ const projectReducer = (
         },
       ];
     case actionTypes.ADD_PROJECT:
-      console.log(action.payload);
       return [...state, action.payload as Project];
+
+    case actionTypes.DELETE_PROJECT:
+      return state.filter((_, index) => index !== action.index);
   }
 
   return state;
@@ -154,7 +157,12 @@ const Generator = () => {
     };
 
     if (!flag.current && authenticated) {
-      getData();
+      try {
+        getData();
+      } catch (error) {
+        console.error("Getting Data Failed:", error);
+        return;
+      }
       flag.current = true;
     }
   }, [authenticated]);
@@ -170,7 +178,7 @@ const Generator = () => {
       console.error("Failed to update projects:", error);
     }
 
-    console.log("updated");
+    // console.log("updated");
   };
 
   const debounceUpdateProjectDocs = () => {
@@ -243,12 +251,34 @@ const Generator = () => {
             isNew={isNew ? newCodeId === project.codeId : false}
             setOld={() => setIsNew(false)}
             onTitleChanged={(title: string) => {
-              console.log(title);
+              //console.log(title);
               updateProjects({
                 type: actionTypes.TITLE,
                 index,
                 payload: title,
               });
+            }}
+            removeSelf={() => {
+              const handleRemoval = async () => {
+                try {
+                  await deleteDoc(doc(db, UUID, projects[index].codeId));
+                  await deleteDoc(doc(db, "projects", projects[index].codeId));
+                } catch (error) {
+                  console.error("deteting files failed: ", error);
+                  return;
+                }
+
+                updateProjects({
+                  type: actionTypes.DELETE_PROJECT,
+                  index: index,
+                  payload: null,
+                });
+                if (index === activeIndex && index === projects.length - 1) {
+                  setActiveIndex(index - 1);
+                }
+              };
+
+              handleRemoval();
             }}
           />
         ))}
@@ -261,93 +291,97 @@ const Generator = () => {
         </button>
       </div>
       <div className="flex items-center justify-center flex-grow">
-        <div className="font-mono">
-          <div className="w-full flex justify-between">
-            <label className="text-white">Content type: </label>
-            <select
-              onChange={(e) =>
-                updateProjects({
-                  type: actionTypes.ENDPOINT,
-                  index: activeIndex,
-                  payload: e.target.value,
-                })
-              }
-              value={projects[activeIndex]?.endPoint}
-            >
-              <option value="redirect">Redirect</option>
-              <option value="text">Text</option>
-            </select>
-          </div>
+        {projects.length !== 0 ? (
+          <div className="font-mono">
+            <div className="w-full flex justify-between">
+              <label className="text-white">Content type: </label>
+              <select
+                onChange={(e) =>
+                  updateProjects({
+                    type: actionTypes.ENDPOINT,
+                    index: activeIndex,
+                    payload: e.target.value,
+                  })
+                }
+                value={projects[activeIndex]?.endPoint}
+              >
+                <option value="redirect">Redirect</option>
+                <option value="text">Text</option>
+              </select>
+            </div>
 
-          <div className="w-full flex justify-between mt-2">
-            <label className="text-white">Error correction: </label>
-            <select
-              onChange={(e) =>
-                updateProjects({
-                  type: actionTypes.CORRECTION,
-                  index: activeIndex,
-                  payload: e.target.value,
-                })
-              }
-              value={
-                projects[activeIndex]?.settings?.errorCorrectionLevel ?? "M"
-              }
-            >
-              <option value="L">Low</option>
-              <option value="M">Medium</option>
-              <option value="Q">Quartile</option>
-              <option value="H">High</option>
-            </select>
-          </div>
+            <div className="w-full flex justify-between mt-2">
+              <label className="text-white">Error correction: </label>
+              <select
+                onChange={(e) =>
+                  updateProjects({
+                    type: actionTypes.CORRECTION,
+                    index: activeIndex,
+                    payload: e.target.value,
+                  })
+                }
+                value={
+                  projects[activeIndex]?.settings?.errorCorrectionLevel ?? "M"
+                }
+              >
+                <option value="L">Low</option>
+                <option value="M">Medium</option>
+                <option value="Q">Quartile</option>
+                <option value="H">High</option>
+              </select>
+            </div>
 
-          <div className="mt-2 mb-2 flex items-center">
-            <label className="text-white">Margin: </label>
+            <div className="mt-2 mb-2 flex items-center">
+              <label className="text-white">Margin: </label>
 
-            <input
-              type="range"
-              min="0"
-              max="10"
-              className="cursor-grab ml-2 accent-blue-600"
-              onChange={(e) => {
-                updateProjects({
-                  type: actionTypes.MARGIN,
-                  index: activeIndex,
-                  payload: Number(e.target.value),
-                });
+              <input
+                type="range"
+                min="0"
+                max="10"
+                className="cursor-grab ml-2 accent-blue-600"
+                onChange={(e) => {
+                  updateProjects({
+                    type: actionTypes.MARGIN,
+                    index: activeIndex,
+                    payload: Number(e.target.value),
+                  });
+                }}
+              />
+            </div>
+            <div>
+              {parse(codeData)}
+              <input
+                type="text"
+                className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
+                onChange={(e) =>
+                  updateProjects({
+                    type: actionTypes.CONTENT,
+                    index: activeIndex,
+                    payload: e.target.value,
+                  })
+                }
+                value={projects[activeIndex]?.content}
+                placeholder="https://example.com"
+              />
+            </div>
+            <button
+              className="text-white w-full bg-blue-600 mt-4 p-1 rounded-md"
+              onClick={() => {
+                const blob = new Blob([codeData], { type: "image/svg+xml" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${projects[activeIndex].title}.svg`;
+                link.click();
+                URL.revokeObjectURL(url);
               }}
-            />
+            >
+              Download
+            </button>
           </div>
-          <div>
-            {parse(codeData)}
-            <input
-              type="text"
-              className="w-full outline-none border-b-2 border-l-2 border-r-2 border-gray-700 hover:border-gray-600 focus:border-gray-500 text-sm rounded-b-md block p-2.5 bg-gray-700 text-white"
-              onChange={(e) =>
-                updateProjects({
-                  type: actionTypes.CONTENT,
-                  index: activeIndex,
-                  payload: e.target.value,
-                })
-              }
-              value={projects[activeIndex]?.content}
-              placeholder="https://example.com"
-            />
-          </div>
-          <button
-            className="text-white w-full bg-blue-600 mt-4 p-1 rounded-md"
-            onClick={() => {
-              const blob = new Blob([codeData], { type: "image/svg+xml" });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = `${projects[activeIndex].title}.svg`;
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Download
-          </button>
-        </div>
+        ) : (
+          <></>
+        )}
       </div>
     </div>
   );
