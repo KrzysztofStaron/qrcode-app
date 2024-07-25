@@ -4,10 +4,18 @@ import React, { useEffect, useState } from "react";
 import LogIn from "./auth/logIn";
 import CreateAccount from "./auth/create";
 import Spinner from "./spinner/spinner";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase/config";
 
 const App = () => {
   const [site, setSite] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      window.location.href = "/generator";
+    }
+  });
 
   useEffect(() => {
     setLoading(false);
