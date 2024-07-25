@@ -198,7 +198,9 @@ const Generator = () => {
 
   // Generate QR Code
   useEffect(() => {
-    const targetUrl = `${window.location.origin}/view/${projects[activeIndex]?.codeId}`;
+    let targetUrl = `${window.location.origin}/view/${projects[activeIndex]?.codeId}`;
+    let helper = targetUrl.split("//");
+    targetUrl = helper[0] + "//www." + helper[1];
 
     if (projects[activeIndex]?.codeId || projects[activeIndex]?.settings) {
       toString(
@@ -348,6 +350,7 @@ const Generator = () => {
                     payload: Number(e.target.value),
                   });
                 }}
+                value={projects[activeIndex]?.settings?.margin ?? 2}
               />
             </div>
             <div>
