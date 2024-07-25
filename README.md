@@ -6,7 +6,10 @@ To Generate a QRCode do a post reguest to https://qrcode-app-topaz.vercel.app/ap
 
 content: "Content of QRcode"
 
-options: {}
+options: {
+margin: 2,
+errorCorrectionLevel: "M"
+}
 
 }
 
